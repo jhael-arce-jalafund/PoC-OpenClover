@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+    id 'org.openclover' version '4.5.2' // Asegúrate de usar la versión correcta
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.github.javaparser:javaparser-core:3.23.1' // Asegúrate de usar la versión correcta
+}
+
+// Configuración de OpenClover
+clover {
+    outputDir = file("${buildDir}/clover")
+    reportDir = file("${buildDir}/reports/clover")
+    cloverOutputFormat = 'json' 
+}
+
+test {
+    useJUnitPlatform() 
+}
+task instrument(type: org.openclover.gradle.tasks.CloverInstrument) {
+    dependsOn 'compileJava'
+    source = fileTree('src/main/java') // Ajusta el directorio de origen según tu estructura
+    destinationDir = file("${buildDir}/instrumented")
+}
+task runTests(dependsOn: 'instrument') {
+    doLast {
+        javaexec {
+            main = '-Dclover.coverage.data.dir=${buildDir}/clover/data'
+            classpath = sourceSets.test.runtimeClasspath
+            args = ['org.junit.runner.JUnitCore', 'com.example.YourTestClass'] // Cambia esto según tus clases de prueba
+        }
+    }
+}
+task generateReport(type: org.openclover.gradle.tasks.CloverReport) {
+    dependsOn 'runTests'
+    destinationDir = file("${buildDir}/reports/clover")
+    source = fileTree("${buildDir}/instrumented") 
+    include '**/*.java'
+}
+task completeWorkflow {
+    dependsOn 'generateReport'
+}
